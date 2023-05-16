@@ -47,30 +47,34 @@ func main() {
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	u := tgbotapi.NewUpdate(0)
+	u.AllowedUpdates = []string{"chat_member"}
 	u.Timeout = 60
 
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		if update.Message == nil {
+		if update.ChatMember == nil || !isNewJoiner(update.ChatMember) {
 			continue
 		}
 
-		if !chatAllowed(update.Message.Chat.ID) {
+		if !chatAllowed(update.ChatMember.Chat.ID) {
 			continue
 		}
 
-		for _, newMember := range update.Message.NewChatMembers {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			welcomeMsg, err := generateWelcome(ctx, client, name(newMember))
-			if err != nil {
-				log.Printf("Error generating welcome message: %v", err)
-				continue
-			}
-			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, welcomeMsg))
+		user := update.ChatMember.NewChatMember.User
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		welcomeMsg, err := generateWelcome(ctx, client, name(user))
+		if err != nil {
+			log.Printf("Error generating welcome message: %v", err)
+			continue
 		}
+		bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, welcomeMsg))
 	}
+}
+
+func isNewJoiner(chatMember *tgbotapi.ChatMemberUpdated) bool {
+	return (chatMember.OldChatMember.Status == "kicked" || chatMember.OldChatMember.Status == "left") && chatMember.NewChatMember.Status != chatMember.OldChatMember.Status
 }
 
 func chatAllowed(chatID int64) bool {
@@ -80,9 +84,9 @@ func chatAllowed(chatID int64) bool {
 	return false
 }
 
-func name(user tgbotapi.User) string {
+func name(user *tgbotapi.User) string {
 	if user.UserName != "" {
-		return user.UserName
+		return "@" + user.UserName
 	}
 	return user.FirstName
 }
