@@ -57,7 +57,8 @@ func main() {
 			continue
 		}
 
-		if !chatAllowed(update.ChatMember.Chat.ID) {
+		chatID := update.ChatMember.Chat.ID
+		if !chatAllowed(chatID) {
 			continue
 		}
 
@@ -69,7 +70,7 @@ func main() {
 			log.Printf("Error generating welcome message: %v", err)
 			continue
 		}
-		bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, welcomeMsg))
+		bot.Send(tgbotapi.NewMessage(chatID, welcomeMsg))
 	}
 }
 
